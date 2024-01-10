@@ -1,20 +1,23 @@
 package cn.edu.bupt.springsecurity.userdetails.demo.service;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.HttpEntity;
+import cn.edu.bupt.springsecurity.userdetails.demo.entity.Message;
+import cn.edu.bupt.springsecurity.userdetails.demo.entity.ServiceResponse;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.*;
+
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 
 @Service
 public class MyService {
-
     private final RestTemplate restTemplate;
 
     @Autowired
@@ -22,43 +25,49 @@ public class MyService {
         this.restTemplate = restTemplate;
     }
 
-    public String getResponseFromApi() {
-        String url = "https://api.ai2u.link/ai/";
+    public Message getResponseFromApi(String service, String interfaceName, String model, List<Message> messages) {
+        String url = "https://api.ai2u.link/ai/chat";
 
-        // 创建请求头
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
 
-        // 创建请求体
-        String requestBody = "{"
-                + "\"service\": \"OpenAI\","
-                + "\"interface_name\": \"chatGPT_1\","
-                + "\"model\": \"gpt-3.5-turbo\","
-                + "\"messages\": ["
-                + "{"
-                + "\"role\": \"user\","
-                + "\"content\": \"Your knowledge cutoff is until when?\""
-                + "}"
-                + "]"
-                + "}";
+        // 构建请求体
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("service", service);
+        requestBody.put("interface_name", interfaceName);
+        requestBody.put("messages", messages);
 
-        // 创建 HttpEntity 对象
-        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+        if (service.equals("OpenAI")) {
+            requestBody.put("model", model);
+        }
 
-        // 发送 POST 请求
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        String json = "";
+        try {
+            json = objectMapper.writeValueAsString(requestBody);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return null; // 返回null表示处理失败
+        }
 
-        // 获取状态码
+        HttpEntity<String> request = new HttpEntity<>(json, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+
         HttpStatus statusCode = response.getStatusCode();
-
-        // 获取响应体
         String responseBody = response.getBody();
 
-        // 在这里，你可以处理状态码和响应体，例如打印它们或者保存到数据库
-        System.out.println("Status code: " + statusCode);
-        System.out.println("Response body: " + responseBody);
+        if (statusCode == HttpStatus.OK && responseBody != null) {
+            try {
+                ServiceResponse res = objectMapper.readValue(responseBody, ServiceResponse.class);
+                System.out.println(res);
+                return res.getLatestMessage();
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+                return null; // 返回null表示处理失败
+            }
+        }
 
-        return responseBody;
+        return null; // 如果无法解析响应或响应中没有消息，返回null
     }
 }

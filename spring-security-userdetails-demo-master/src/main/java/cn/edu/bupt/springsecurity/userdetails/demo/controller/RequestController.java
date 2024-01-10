@@ -8,16 +8,5 @@ import org.springframework.beans.factory.annotation.Autowired;
 @RestController
 public class RequestController {
 
-    private final MyService myService;
-
-    @Autowired
-    public RequestController(MyService myService) {
-        this.myService = myService;
-    }
-
-    @GetMapping("/api")
-    public String getResponseFromApi() {
-        return myService.getResponseFromApi();
-    }
 }
 

@@ -8,6 +8,7 @@ public class Message {
     @TableId(type = IdType.INPUT)
     private Long id;
     private String content;
+    private String role;
     private Long conversationId;
 
     // getters and setters

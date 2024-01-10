@@ -5,11 +5,21 @@ import cn.edu.bupt.springsecurity.userdetails.demo.entity.Conversation;
 import cn.edu.bupt.springsecurity.userdetails.demo.entity.Message;
 import cn.edu.bupt.springsecurity.userdetails.demo.mapper.ConversationMapper;
 import cn.edu.bupt.springsecurity.userdetails.demo.mapper.MessageMapper;
+import cn.edu.bupt.springsecurity.userdetails.demo.service.MyService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import cn.edu.bupt.springsecurity.userdetails.demo.entity.Message;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/conversations")
@@ -19,6 +29,7 @@ public class ConversationController {
     private ConversationMapper conversationMapper;
     @Autowired
     private MessageMapper messageMapper;
+
 
     // 创建对话
     @PostMapping
@@ -50,6 +61,7 @@ public class ConversationController {
     // 删除对话
     @DeleteMapping("/{id}")
     public String deleteConversation(@PathVariable Long id) {
+        messageMapper.delete(new QueryWrapper<Message>().eq("conversation_id", id));
         conversationMapper.deleteById(id);
         return "Deleted Conversation id = " + id;
     }
@@ -59,7 +71,12 @@ public class ConversationController {
     public Message createMessage(@PathVariable Long id, @RequestBody Message message) {
         message.setConversationId(id);
         messageMapper.insert(message);
-        return message;
+        MyService myService = new MyService(new RestTemplate());
+        Message newMessage = myService.getResponseFromApi("OpenAI", "chatGPT_1", "gpt-4-1106-preview",
+                messageMapper.selectList(new QueryWrapper<Message>().eq("conversation_id", id)));
+        newMessage.setConversationId(id);
+        messageMapper.insert(newMessage);
+        return newMessage;
     }
 
     // 获取对话的所有消息
@@ -67,5 +84,6 @@ public class ConversationController {
     public List<Message> getAllMessagesByConversationId(@PathVariable Long id) {
         return messageMapper.selectList(new QueryWrapper<Message>().eq("conversation_id", id));
     }
+
 }
 
